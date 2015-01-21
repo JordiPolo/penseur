@@ -1,0 +1,97 @@
+#!/usr/bin/env ruby
+$:.unshift(File.dirname(__FILE__) + '/../lib') unless $:.include?(File.dirname(__FILE__) + '/../lib')
+
+begin
+  require 'bundler'
+  require 'bundler/cli'
+  require 'bundler/vendored_thor'
+rescue LoadError
+  raise "Your version of bundler does not support Le penseur's good works.  Please ugrade your bundler to >= 1.2"
+end
+require 'penseur'
+require 'byebug'
+
+def read_gemfile_lock(project)
+  file = File.join(project, "Gemfile.lock")
+  if !File.exist?(file)
+    raise "Project at #{project} does not have a gemfile.lock file"
+  end
+  Bundler::LockfileParser.new(File.read(file))
+end
+
+def our_specs(lockfile)
+  lockfile.specs.select{|spec| lockfile.dependencies.any?{|dependency| dependency.name == spec.name}}
+end
+
+def compare_lock(project_src, project_dest)
+   updated_gems = {}
+   old_lockfile = read_gemfile_lock(project_src)
+   new_lockfile = read_gemfile_lock(project_dest)
+   old_list = our_specs(old_lockfile)
+   new_list = our_specs(new_lockfile)
+   old_list.each do |old_spec|
+     new_list.each do |new_spec|
+       # skip stuff we have in the gemfile.lock but not in the gemfile
+       if old_spec.name == new_spec.name
+         if old_spec.version != new_spec.version
+           updated_gems[old_spec.name] = {
+             gem_name: old_spec.name,
+             old_rev: old_spec.version,
+             new_rev: new_spec.version,
+             old_project: project_src,
+             new_project: project_dest
+           }
+         end
+       end
+     end
+   end
+   updated_gems
+end
+
+def print_conclusions(project_name, changes)
+  if changes.empty?
+    puts "No changes needed for #{project_name}"
+  else
+    puts
+    puts
+    puts "Changes needed for #{project_name}:"
+    changes.each do |change|
+      small_version = [change[:old_rev], change[:new_rev]].min
+      big_version = [change[:old_rev], change[:new_rev]].max
+      puts "#{change[:gem_name]}:"
+      puts "  Update #{change[:gem_name]} from #{small_version} to #{big_version} "
+    #  puts "  "
+    end
+  end
+
+end
+
+module Penseur
+  class CLI < Thor
+    check_unknown_options!
+
+    default_task :compare
+
+    desc 'compare PROJECT1 PROJECT2', 'compare two projects gems'
+    def compare(project_src, project_dest)
+      changed_gems = compare_lock(project_src, project_dest)
+      old_bigger = changed_gems.values.select{|change| change[:old_rev] > change[:new_rev]}
+      new_bigger = changed_gems.values.select{|change| change[:old_rev] < change[:new_rev]}
+      print_conclusions(project_src, old_bigger)
+      print_conclusions(project_dest, new_bigger)
+
+      changed_gems.values.each do |raw_change|
+      end
+
+      
+    end
+
+    map '--version' => :version
+    desc 'version', 'Prints the current version'
+    def version
+      puts "Powered by thinkers at level #{VERSION}"
+    end
+  end
+end
+
+Penseur::CLI.start
