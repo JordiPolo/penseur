@@ -1,26 +1,19 @@
 # Penseur
 
-TODO: Write a gem description
+This gem will let you compare two project's gems and tell you how to
+make them the same.
 
 ## Installation
 
-Add this line to your application's Gemfile:
-
-```ruby
-gem 'penseur'
-```
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
+Install it as:
 
     $ gem install penseur
 
 ## Usage
 
-TODO: Write usage instructions here
+    $ penseur compare  PROJECT1 PROJECT2
+
+where PROJECT1 and PROJECT2 are directories with your projects
 
 ## Contributing
 
